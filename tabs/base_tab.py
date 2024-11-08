@@ -6,3 +6,7 @@ class BaseTab:
     @staticmethod
     def get_layout(sensors):
         pass
+
+    @staticmethod
+    def register_callbacks(app, sensors):
+        pass

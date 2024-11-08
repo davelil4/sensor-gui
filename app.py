@@ -1,13 +1,17 @@
 # app.py
 import dash
+import dash_bootstrap_components as dbc
 from sensors import load_sensors
 from sensors.communication import PySerialCommunication  # or ZCMCommunication
-from layout import create_layout
-import callbacks  # Import callbacks to register them
+from tabs import register_tabs  # Import the register_tabs function
+import callbacks  # Import the callbacks module
 
 # Initialize the Dash app
-import dash_bootstrap_components as dbc
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(
+    __name__,
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    suppress_callback_exceptions=True  # Allow callbacks for dynamic components
+)
 server = app.server
 
 # Initialize shared communication using dependency injection
@@ -21,11 +25,11 @@ communication = PySerialCommunication(
 sensors = load_sensors(communication)
 sensor_dict = {sensor.name: sensor for sensor in sensors}
 
-# Set up the layout
-app.layout = create_layout(sensors)
+# Register tabs and get the app layout
+app.layout = register_tabs(app, sensors)
 
-# Register callbacks
-callbacks.register_callbacks(app, sensors, sensor_dict)
+# Register overall project callbacks
+callbacks.register_callbacks(app, sensors)
 
 if __name__ == '__main__':
     app.run_server(debug=True)
