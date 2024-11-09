@@ -58,7 +58,7 @@ The Sensor Dashboard Application allows users to monitor real-time data from mul
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/sensor-dashboard.git
+   git clone git@github.com:davelil4/sensor-gui.git
    cd sensor-dashboard
    ```
 
