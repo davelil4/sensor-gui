@@ -34,3 +34,8 @@ def register_callbacks(app, sensors):
             return "Emergency Activated"
         else:
             return "Emergency"
+    
+    # Sensor-specific callbacks
+    for sensor in sensors:
+        if hasattr(sensor, 'register_callbacks'):
+            sensor.register_callbacks(app)

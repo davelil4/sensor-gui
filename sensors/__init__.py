@@ -1,3 +1,4 @@
+# sensors/__init__.py
 import os
 import importlib
 from .base_sensor import BaseSensor

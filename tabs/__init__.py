@@ -29,7 +29,7 @@ def register_tabs(app, sensors):
             module.register_callbacks(app, sensors)
         
         # Store each tab's layout function in a dictionary for rendering
-        tab_contents[module.tab_id] = module.get_layout(sensors)
+        tab_contents[module.tab_id] = module.get_layout(sensors, app)
 
     # Set up callback to render content for the selected tab
     @app.callback(

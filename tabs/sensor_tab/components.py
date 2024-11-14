@@ -4,6 +4,7 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 from .sensor_cards.base_sensor_card import BaseSensorCard
 
+
 def create_sensor_card(app, sensor_name, sensor):
     """
     Create a sensor card, dynamically loading sensor-specific classes if available.
@@ -33,8 +34,26 @@ def create_sensor_card(app, sensor_name, sensor):
     # Instantiate the card class, passing the app instance
     sensor_card = card_class(app, sensor_name, sensor)
 
-    # Register sensor-specific callbacks if applicable
-    if hasattr(sensor_card, 'register_callbacks'):
-        sensor_card.register_callbacks()
+    # Register sensor-specific callbacks if not already registered
+    sensor_card.register_callbacks() # Uncomment this line to register callbacks (going to try registering outside of individual cards)
 
     return sensor_card.create_card()
+
+def create_all_sensor_cards(app, sensors):
+    """
+    Create all sensor cards and register their callbacks.
+
+    Parameters:
+    - app: The Dash app instance.
+    - sensors: List of sensor objects.
+
+    Returns:
+    - A dictionary mapping sensor names to their card components.
+    """
+    sensor_cards = []
+    for sensor in sensors:
+        sensor_name = sensor.name
+        # Create the sensor card
+        card = create_sensor_card(app, sensor_name, sensor)
+        sensor_cards.append(card)
+    return sensor_cards

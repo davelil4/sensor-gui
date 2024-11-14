@@ -21,7 +21,7 @@ Welcome to the **Sensors Module** of the **Sensor Dashboard Application**! This 
   - [1. Create Sensor Class](#1-create-sensor-class)
   - [2. Update `load_sensors` Function](#2-update-load_sensors-function)
 - [Sensor Class Guidelines](#sensor-class-guidelines)
-- [Example: Temperature Sensor](#example-temperature-sensor)
+- [Example: Multiple Sensors with Multiple Values](#example-multiple-sensors-with-multiple-values)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
@@ -164,12 +164,11 @@ class YourSensor(BaseSensor):
     def __init__(self, communication):
         super().__init__(communication)
         self.name = "Your Sensor Name"
-        self.data_fields = ['Temperature', 'Humidity']
+        self.data_fields = ['Field1', 'Field2']
 
     def get_data(self):
         line = self.communication.read_line()
         if line:
-            # Parse the line into data
             data = self.parse_data(line)
             if data:
                 data['Time'] = datetime.now()
@@ -185,76 +184,117 @@ class YourSensor(BaseSensor):
 
 ## **Arduino Data Format**
 
-To ensure proper communication between the Arduino and the application, the data sent from the Arduino must be in a format that the Python application can parse.
+To ensure proper communication between the Arduino and the application, the data sent from the Arduino must be in a format that the Python application can parse. When dealing with **multiple sensors**, each potentially providing **multiple values**, it's essential to design a data format that is both comprehensive and parsable.
 
 ### **Expected Data Format**
 
 The data format should be:
 
-- **Consistent**: Each line sent over serial should follow the same structure.
-- **Parsable**: Use a format that's easy to parse in Python (e.g., CSV, JSON).
+- **Structured**: Clearly indicate which data belongs to which sensor and field.
+- **Parsable**: Use a format that's easy to parse in Python (e.g., JSON, custom delimiter-separated values).
+- **Consistent**: Each data message follows the same structure.
 
-**Common Formats:**
+**Recommended Format**: **JSON Lines** (each line is a JSON object)
 
-1. **Comma-Separated Values (CSV):**
+**Example Data Line:**
 
-   ```
-   value1,value2,value3
-   ```
+```json
+{"SensorName": "TemperatureSensor", "Fields": {"Temperature": 25.0}}
+{"SensorName": "AccelerometerSensor", "Fields": {"X": 0.02, "Y": -0.01, "Z": 9.81}}
+```
 
-2. **JSON String:**
+This format allows you to:
 
-   ```
-   {"Temperature":25.0,"Humidity":40.0}
-   ```
-
-3. **Key-Value Pairs:**
-
-   ```
-   Temperature=25.0;Humidity=40.0
-   ```
+- Easily parse each line as a JSON object.
+- Include multiple sensors and multiple fields per sensor.
+- Extend the data format without breaking existing parsers.
 
 ### **Sample Arduino Code**
 
-Below is an example Arduino sketch that sends sensor data in CSV format over serial.
+Below is an example Arduino sketch that sends data in JSON format over serial for multiple sensors with multiple values.
 
-**Example:**
+**Arduino Sketch:**
 
 ```cpp
 // Arduino Sketch
+
+#include <ArduinoJson.h> // Install ArduinoJson library
 
 void setup() {
   Serial.begin(9600); // Set the baud rate to match PySerialCommunication
 }
 
 void loop() {
-  // Read sensor values
-  float temperature = readTemperatureSensor();
-  float humidity = readHumiditySensor();
+  // Create a JSON document
+  StaticJsonDocument<200> doc;
 
-  // Send data over serial in CSV format
-  Serial.print(temperature);
-  Serial.print(",");
-  Serial.println(humidity);
+  // Temperature Sensor Data
+  float temperature = readTemperatureSensor();
+  doc["SensorName"] = "TemperatureSensor";
+  JsonObject fields = doc.createNestedObject("Fields");
+  fields["Temperature"] = temperature;
+
+  // Serialize JSON to string
+  String output;
+  serializeJson(doc, output);
+
+  // Send data over serial
+  Serial.println(output);
 
   delay(1000); // Send data every second
+
+  // Clear the JSON document for the next sensor
+  doc.clear();
+
+  // Accelerometer Sensor Data
+  float accX = readAccelerometerX();
+  float accY = readAccelerometerY();
+  float accZ = readAccelerometerZ();
+  doc["SensorName"] = "AccelerometerSensor";
+  fields = doc.createNestedObject("Fields");
+  fields["X"] = accX;
+  fields["Y"] = accY;
+  fields["Z"] = accZ;
+
+  // Serialize and send
+  serializeJson(doc, output);
+  Serial.println(output);
+
+  delay(1000); // Adjust delay as needed
 }
 
 float readTemperatureSensor() {
   // Replace with actual sensor reading code
-  return 25.0;
+  return 25.0; // Placeholder value
 }
 
-float readHumiditySensor() {
+float readAccelerometerX() {
   // Replace with actual sensor reading code
-  return 40.0;
+  return 0.02; // Placeholder value
+}
+
+float readAccelerometerY() {
+  // Replace with actual sensor reading code
+  return -0.01; // Placeholder value
+}
+
+float readAccelerometerZ() {
+  // Replace with actual sensor reading code
+  return 9.81; // Placeholder value
 }
 ```
 
 **Notes:**
 
-- The Arduino sends data in the format: `25.0,40.0`
-- Each data line is terminated with a newline character `\n`, which `readline()` in PySerial uses to read the complete line.
+- The Arduino sends data as JSON strings, one line per sensor data reading.
+- The JSON object contains:
+  - `"SensorName"`: Name of the sensor.
+  - `"Fields"`: An object containing key-value pairs for each field.
+
+**ArduinoJson Library:**
+
+- Install the ArduinoJson library via the Library Manager in the Arduino IDE.
+- It's efficient and suitable for embedded devices.
 
 ---
 
@@ -273,36 +313,32 @@ Create a new sensor class in the `sensors/` directory, following the naming conv
 
 from .base_sensor import BaseSensor
 from datetime import datetime
+import json
 
 class YourSensor(BaseSensor):
     def __init__(self, communication):
         super().__init__(communication)
-        self.name = "Your Sensor Name"
-        self.data_fields = ['Temperature', 'Humidity']
+        self.name = "YourSensor"
+        self.data_fields = ['Field1', 'Field2']
 
     def get_data(self):
-        line = self.communication.read_line()
-        if line:
-            data = self.parse_data(line)
-            if data:
-                data['Time'] = datetime.now()
-                return data
+        while True:
+            line = self.communication.read_line()
+            if line:
+                data = self.parse_data(line)
+                if data and data.get('SensorName') == self.name:
+                    fields = data.get('Fields', {})
+                    fields['Time'] = datetime.now()
+                    return fields
         return None
 
     def parse_data(self, line):
         try:
-            # Assuming CSV format: Temperature,Humidity
-            values = line.split(',')
-            if len(values) == 2:
-                temperature = float(values[0])
-                humidity = float(values[1])
-                return {
-                    'Temperature': temperature,
-                    'Humidity': humidity
-                }
-        except ValueError as e:
-            print(f"Error parsing line '{line}': {e}")
-        return None
+            data = json.loads(line)
+            return data
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON '{line}': {e}")
+            return None
 ```
 
 ### **2. Update `load_sensors` Function**
@@ -313,9 +349,13 @@ Add your new sensor class to the list of sensors in `load_sensors.py`.
 # sensors/load_sensors.py
 
 from .your_sensor import YourSensor
+from .temperature_sensor import TemperatureSensor
+from .accelerometer_sensor import AccelerometerSensor
 
 def load_sensors(communication):
     sensors = [
+        TemperatureSensor(communication),
+        AccelerometerSensor(communication),
         YourSensor(communication),
         # ... other sensors
     ]
@@ -329,17 +369,17 @@ def load_sensors(communication):
 When creating a sensor class, adhere to the following guidelines:
 
 - **Inherit from `BaseSensor`**: This ensures consistency and allows you to leverage common functionality.
-- **Define `self.name`**: A unique name for the sensor.
+- **Define `self.name`**: A unique name for the sensor, matching the `"SensorName"` in the Arduino data.
 - **Define `self.data_fields`**: A list of data fields the sensor provides (excluding 'Time').
 - **Implement `get_data` Method**:
 
-  - Should return a dictionary containing the sensor data.
-  - Must include a 'Time' field with a timestamp.
+  - Continuously read lines until the line corresponding to the sensor is found.
+  - Return a dictionary containing the sensor data, including a 'Time' field with a timestamp.
   - Keys should match `self.data_fields`.
 
 - **Implement `parse_data` Method**:
 
-  - Parse the line read from the serial port into a dictionary.
+  - Parse the JSON string received from the serial port into a dictionary.
 
 - **Handle Exceptions**: Ensure that any communication errors are handled gracefully.
 
@@ -358,71 +398,137 @@ class BaseSensor:
 
 ---
 
-## **Example: Temperature Sensor**
+## **Example: Multiple Sensors with Multiple Values**
 
-Here's how the Temperature Sensor is implemented, using PySerial communication and parsing data from the Arduino.
-
-**Arduino Sketch (Sending Data):**
+**Arduino Sketch (Sending Data for Multiple Sensors):**
 
 ```cpp
-// Arduino Sketch for Temperature Sensor
+// Arduino Sketch for Multiple Sensors
+
+#include <ArduinoJson.h>
 
 void setup() {
   Serial.begin(9600);
 }
 
 void loop() {
+  StaticJsonDocument<200> doc;
+
+  // Temperature Sensor Data
   float temperature = readTemperatureSensor();
-  Serial.println(temperature); // Send temperature value
+  doc["SensorName"] = "TemperatureSensor";
+  JsonObject fields = doc.createNestedObject("Fields");
+  fields["Temperature"] = temperature;
+  String output;
+  serializeJson(doc, output);
+  Serial.println(output);
+  doc.clear();
+
+  // Accelerometer Sensor Data
+  float accX = readAccelerometerX();
+  float accY = readAccelerometerY();
+  float accZ = readAccelerometerZ();
+  doc["SensorName"] = "AccelerometerSensor";
+  fields = doc.createNestedObject("Fields");
+  fields["X"] = accX;
+  fields["Y"] = accY;
+  fields["Z"] = accZ;
+  serializeJson(doc, output);
+  Serial.println(output);
+  doc.clear();
+
   delay(1000);
 }
 
-float readTemperatureSensor() {
-  // Replace with actual sensor reading code
-  return 25.0;
-}
+// Sensor reading functions...
 ```
 
-**Python Sensor Class:**
+**Python Sensor Classes:**
 
-```python
-# sensors/temperature_sensor.py
+- **Temperature Sensor**
 
-from .base_sensor import BaseSensor
-from datetime import datetime
+  ```python
+  # sensors/temperature_sensor.py
 
-class TemperatureSensor(BaseSensor):
-    def __init__(self, communication):
-        super().__init__(communication)
-        self.name = "Temperature Sensor"
-        self.data_fields = ['Temperature']
+  from .base_sensor import BaseSensor
+  from datetime import datetime
+  import json
 
-    def get_data(self):
-        line = self.communication.read_line()
-        if line:
-            data = self.parse_data(line)
-            if data:
-                data['Time'] = datetime.now()
-                return data
-        return None
+  class TemperatureSensor(BaseSensor):
+      def __init__(self, communication):
+          super().__init__(communication)
+          self.name = "TemperatureSensor"
+          self.data_fields = ['Temperature']
 
-    def parse_data(self, line):
-        try:
-            temperature = float(line)
-            return {'Temperature': temperature}
-        except ValueError as e:
-            print(f"Error parsing temperature '{line}': {e}")
-            return None
-```
+      def get_data(self):
+          while True:
+              line = self.communication.read_line()
+              if line:
+                  data = self.parse_data(line)
+                  if data and data.get('SensorName') == self.name:
+                      fields = data.get('Fields', {})
+                      fields['Time'] = datetime.now()
+                      return fields
+          return None
+
+      def parse_data(self, line):
+          try:
+              data = json.loads(line)
+              return data
+          except json.JSONDecodeError as e:
+              print(f"Error parsing JSON '{line}': {e}")
+              return None
+  ```
+
+- **Accelerometer Sensor**
+
+  ```python
+  # sensors/accelerometer_sensor.py
+
+  from .base_sensor import BaseSensor
+  from datetime import datetime
+  import json
+
+  class AccelerometerSensor(BaseSensor):
+      def __init__(self, communication):
+          super().__init__(communication)
+          self.name = "AccelerometerSensor"
+          self.data_fields = ['X', 'Y', 'Z']
+
+      def get_data(self):
+          while True:
+              line = self.communication.read_line()
+              if line:
+                  data = self.parse_data(line)
+                  if data and data.get('SensorName') == self.name:
+                      fields = data.get('Fields', {})
+                      fields['Time'] = datetime.now()
+                      return fields
+          return None
+
+      def parse_data(self, line):
+          try:
+              data = json.loads(line)
+              return data
+          except json.JSONDecodeError as e:
+              print(f"Error parsing JSON '{line}': {e}")
+              return None
+  ```
+
+**Explanation:**
+
+- **Continuous Reading**: The `get_data` method loops continuously, reading lines from the serial port until it finds data corresponding to the sensor's `name`.
+- **Data Parsing**: The `parse_data` method uses `json.loads` to parse each line into a Python dictionary.
+- **Matching Sensor Data**: Only the data where `'SensorName'` matches the sensor's `self.name` is processed.
 
 ---
 
 ## **Best Practices**
 
-- **Match Baud Rates**: Ensure that the baud rate set in the Arduino sketch (`Serial.begin(baudrate)`) matches the baud rate specified in `PySerialCommunication`.
-- **Consistent Data Format**: Keep the data format consistent and simple to parse.
-- **Data Validation**: Validate data in the `parse_data` method to handle any anomalies.
-- **Logging**: Print informative messages when errors occur to facilitate debugging.
+- **Consistent Data Format**: Use a structured data format like JSON to encapsulate sensor data.
+- **Unique Sensor Names**: Ensure each sensor has a unique `SensorName` in the data and matches `self.name` in the sensor class.
+- **Efficient Parsing**: Use efficient parsing methods (`json.loads`) and avoid blocking the serial port.
+- **Error Handling**: Implement robust error handling for data parsing and communication errors.
 - **Resource Management**: Close serial connections properly when the application exits.
 
 ---
@@ -438,8 +544,9 @@ class TemperatureSensor(BaseSensor):
 
 ### **Data Parsing Errors**
 
-- **Incorrect Data Format**: Ensure the data sent from the Arduino matches the expected format in the `parse_data` method.
+- **Incorrect Data Format**: Ensure the data sent from the Arduino matches the expected JSON format.
 - **Error Messages**: Review any error messages printed during parsing to identify issues.
+- **Incomplete Data**: Check if data lines are incomplete or truncated due to serial communication issues.
 
 ### **Serial Connection Errors**
 

@@ -58,14 +58,17 @@ class TemperatureSensorCard(BaseSensorCard):
         """
         Register sensor-specific callbacks for the Temperature Sensor.
         """
+        if self.callbacks_registered:
+            return
+        self.callbacks_registered = True
         @self.app.callback(
-            Output({'type': 'sensor-content', 'sensor_name': MATCH}, 'children'),
+            Output({'type': 'sensor-content', 'sensor_name': self.sensor_name}, 'children'),
             [
-                Input({'type': 'sensor-interval', 'sensor_name': MATCH}, 'n_intervals'),
-                Input({'type': 'time-window', 'sensor_name': MATCH}, 'value'),
-                Input({'type': 'temp-unit', 'sensor_name': MATCH}, 'value')
+                Input({'type': 'sensor-interval', 'sensor_name': self.sensor_name}, 'n_intervals'),
+                Input({'type': 'time-window', 'sensor_name': self.sensor_name}, 'value'),
+                Input({'type': 'temp-unit', 'sensor_name': self.sensor_name}, 'value')
             ],
-            [State({'type': 'sensor-content', 'sensor_name': MATCH}, 'id')]
+            [State({'type': 'sensor-content', 'sensor_name': self.sensor_name}, 'id')]
         )
         def update_temperature_sensor_content(n_intervals, time_window_value, temp_unit, content_id):
             """
