@@ -61,7 +61,7 @@ class PySerialCommunication(CommunicationInterface):
                     with self.serial_lock:
                         line = self.serial_conn.readline().decode('utf-8').strip()
                     if line:
-                        print(f"Received line: {line}")
+                        # print(f"Received line: {line}")
                         sensor_id, data_str = self.parse_message(line)
                         if sensor_id and sensor_id in self.callbacks:
                             data_values = data_str.split(',')

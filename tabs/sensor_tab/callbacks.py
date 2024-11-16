@@ -1,5 +1,6 @@
 # tabs/sensor_tab/callbacks.py
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 from .components import create_sensor_card
 import dash_bootstrap_components as dbc
 
@@ -38,3 +39,26 @@ def register_callbacks(app, sensors):
                 dbc.Col(card, width=12, lg=6)
             )
         return cards
+
+    @app.callback(
+        Output('callback-store', 'data'),
+        Input('data', 'modified_timestamp'),
+        State('sensor-cards', 'children'),
+        State('callback-store', 'data')
+    )
+    def register_sensor_cards_callbacks(mod, sensor_cards, data):
+        """
+        Register sensor-specific callbacks for all sensor cards.
+        """
+        if not data['sensor-tab']:
+            data['sensor-tab'] = {}
+            data['sensor-tab']['sensor-cards'] = False
+        
+        if data['sensor-tab']['sensor-cards']:
+            raise PreventUpdate
+        else:
+            data['sensor-tab']['sensor-cards'] = True
+            for card in sensor_cards:
+                card.register_callbacks()
+        
+        return data

@@ -21,7 +21,7 @@ class BaseSensor:
 
     def get_data(self):
         df = pd.DataFrame(self.data)
-        self.data.clear()
+        # self.data.clear()
         return df
 
     def close(self):

@@ -137,8 +137,13 @@ class BaseSensorCard:
         if BaseSensorCard.callbacks_registered.get(self.sensor_name, False):
             BaseSensorCard.callbacks_registered[self.sensor_name] = True
             return
-        self.callbacks_registered = True
-
+        # if self.app.layout[0].data['callbacks_registered'].get(self.sensor_name, False):
+        #     self.app.layout[0].data['callbacks_registered'][self.sensor_name] = True
+        #     self.app.layout[0].data
+        #     return
+        # self.callbacks_registered = True
+        # print(self.app.layout[0].data)
+        # print(f"Callback registered for {self.sensor_name}")
         # Callback to update the sensor graphs
         @self.app.callback(
             [Output({'type': 'sensor-graph', 'sensor_name': self.sensor_name, 'field': field}, 'figure') for field in self.data_fields],
@@ -147,6 +152,7 @@ class BaseSensorCard:
         )
         def update_sensor_graphs(n_intervals, time_window):
             data = self.sensor.get_data()
+            # print(data)
             figures = []
             if data.empty:
                 # Return empty figures

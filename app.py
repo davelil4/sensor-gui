@@ -1,5 +1,6 @@
 # app.py
-import dash
+from dash import Dash, Output, Input, dcc, State
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 from sensors import load_sensors
 from sensors.communication import PySerialCommunication  # or ZCMCommunication
@@ -8,7 +9,7 @@ import callbacks  # Import the general callbacks module
 import os
 
 # Initialize the Dash app
-app = dash.Dash(
+app = Dash(
     __name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
     suppress_callback_exceptions=True  # Allow callbacks for dynamic components
@@ -18,18 +19,16 @@ server = app.server
 def initialize_app():
     # Initialize shared communication using dependency injection
     communication = PySerialCommunication(
-        port='/dev/cu.usbmodem1401',  # Replace with your serial port
+        port='/dev/cu.usbmodem1101',  # Replace with your serial port
         baudrate=115200,
         timeout=10
     )
-
+    app.layout = [dcc.Store(id='callback_store', storage_type='session', data=False)]  # Store for general callbacks
     # Load sensors with shared communication
-    sensors = load_sensors(communication)
+    sensors = load_sensors(communication, app)
 
     # Assign the main layout of the app
-    app.layout = create_layout(app, sensors)
-
-    # Register general callbacks (Emergency button, etc.)
+    app.layout.append(create_layout(app, sensors))
     callbacks.register_callbacks(app, sensors)
 
 # Check if the script is run directly (not imported) and if it's the reloader process

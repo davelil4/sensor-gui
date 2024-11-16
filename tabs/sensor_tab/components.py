@@ -35,7 +35,8 @@ def create_sensor_card(app, sensor_name, sensor):
     sensor_card = card_class(app, sensor_name, sensor)
 
     # Register sensor-specific callbacks if not already registered
-    sensor_card.register_callbacks() # Uncomment this line to register callbacks (going to try registering outside of individual cards)
+    
+    # sensor_card.register_callbacks() # Uncomment this line to register callbacks (going to try registering outside of individual cards)
 
     return sensor_card.create_card()
 

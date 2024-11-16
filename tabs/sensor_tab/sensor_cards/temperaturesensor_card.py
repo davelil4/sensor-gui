@@ -3,7 +3,7 @@ from .base_sensor_card import BaseSensorCard
 from ..data_handlers.base_data_handler import BaseSensorDataHandler
 from dash import html, dcc
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output, State, MATCH
+from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime, timedelta
@@ -58,7 +58,8 @@ class TemperatureSensorCard(BaseSensorCard):
         """
         Register sensor-specific callbacks for the Temperature Sensor.
         """
-        if self.callbacks_registered:
+        if BaseSensorCard.callbacks_registered.get(self.sensor_name, False):
+            BaseSensorCard.callbacks_registered[self.sensor_name] = True
             return
         self.callbacks_registered = True
         @self.app.callback(

@@ -1,0 +1,1 @@
+- Have app propogate into object creation to put sensor data and callback registrations into stores
